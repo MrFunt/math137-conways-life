@@ -26,7 +26,7 @@ type alias State = { board : Board, paused : Bool }
 
 -- A type for your game events. As your game gets more features, you will
 -- probably add more variants to this type.
-type Event = NoOp
+type Event = NoOp | MouseFlip Cell
 
 
 main : Game.Game State Event
@@ -102,6 +102,10 @@ updateGame event currentState =
         case currentState.paused of
           True -> {board = Memoize.memoize memoStrat (nextBoard currentState.board), paused = True}
           False -> currentState
+    Game.Custom (MouseFlip somecell) ->
+      case currentState.paused of
+        True -> {board = flipCell somecell currentState.board, paused = True}
+        False -> {board = flipCell somecell currentState.board, paused = False}
     Game.Keyboard _ ->
       currentState
 
@@ -110,6 +114,22 @@ updateGame event currentState =
 -- Hint: Use this when you go to write `drawCell` and `drawGame`
 boardSize : Int
 boardSize = 50
+
+invertStatus: CellStatus -> CellStatus
+invertStatus x = case x of
+  Alive -> Dead
+  Dead -> Alive
+
+flipCell : Cell -> Board -> Board
+flipCell c b = 
+  let
+      newBoard : Cell -> CellStatus
+      newBoard someCell = if someCell == c
+        then invertStatus (b(c))
+        else b(someCell)
+
+  in
+    newBoard
 
 
 -- The list of all cells based on your `boardSize`.
@@ -126,7 +146,7 @@ allCells =
 drawGame : State -> Graphics.Canvas Event
 drawGame state =
   let
-    drawCell : Cell -> Graphics.Svg a
+    drawCell : Cell -> Graphics.Svg Event
     drawCell cell =
       let
         cellStatus : CellStatus
@@ -145,10 +165,10 @@ drawGame state =
         , y0 = (toFloat cell.y) * 10
         , width = 10
         , height = 10
-        , onClick = Nothing
+        , onClick = Just (MouseFlip cell)
         }
 
-    cells : List (Graphics.Svg a)
+    cells : List (Graphics.Svg Event)
     cells = List.map drawCell allCells
   in
   Graphics.canvas
